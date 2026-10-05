@@ -25,4 +25,5 @@ service-account*.json
 
 # Sistema
 .DS_Store
-Thumbs.dbnotebooks_and_tests/
+Thumbs.db
+notebooks_and_tests/
