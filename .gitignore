@@ -1,7 +1,28 @@
-.streamlit/secrets.toml
-__pycache__/
-*.json
-
-secrets.tXT
+# Ambiente Python
+.venv/
 venv/
-MANUAL.md
+env/
+
+# Cache Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Secrets
+.streamlit/secrets.toml
+.env
+.env.*
+
+# Credenciais
+config/credentials.json
+service-account*.json
+
+# Temporários
+*.log
+*.tmp
+*.bak
+*.save
+
+# Sistema
+.DS_Store
+Thumbs.db
