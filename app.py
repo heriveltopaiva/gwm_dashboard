@@ -709,12 +709,6 @@ if vend_sel:
     ]
 
 r = dados.indicadores(base_loja_vendedor, ini, fim)
-st.write("DEBUG USADOS:", len(r["fat_usado"]))
-st.dataframe(
-    r["fat_usado"][
-        ["DATA PEDIDO", "DATA FAT", "TIPO", "STATUS", "CAPTAÇÃO", "MODELO"]
-    ]
-)
 meta = dados.meta_periodo(metas, lojas_sel, ini, fim)
 
 # ------------------------------------------------------------
