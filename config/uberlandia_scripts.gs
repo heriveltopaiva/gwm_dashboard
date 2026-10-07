@@ -39,7 +39,7 @@ const CONFIG_GWM = {
     "CHASSI", "FAMILIA", "COR", "NOME CLIENTE",
     "VEND", "LOCAL", "VENDA", "CUSTO",
     "INCID", "LB", "OBS", "OBS2",
-    "TEST DRIVE", "CAPTAÇÃO"
+    "TEST DRIVE", "CAPTAÇÃO", "MODELO", "PLACA", "EMISSÃO"
   ],
 
   // Listas fixas dos menus suspensos (para mudar um nome, edite aqui e rode

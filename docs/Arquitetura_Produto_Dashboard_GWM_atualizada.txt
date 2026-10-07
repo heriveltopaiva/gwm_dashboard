@@ -1,0 +1,311 @@
+ARQUITETURA DO PRODUTO — DASHBOARD GWM
+Configuração administrativa e manutenção
+
+1. OBJETIVO
+Transformar o dashboard GWM em um produto que possa ser utilizado por uma empresa sem exigir alterações no código para tarefas administrativas rotineiras.
+
+Separar:
+- Lógica do sistema: leitura, tratamento, cálculos, indicadores e interface.
+- Configurações administrativas: lojas, nomes de exibição, status e parâmetros autorizados.
+- Dados operacionais: vendas, pedidos, faturamento e metas.
+
+Nesta primeira versão, o Google Sheets continuará como fonte de dados e configurações.
+
+2. VISÃO GERAL DA ARQUITETURA
+
+Dashboard Streamlit
+    |
+    v
+Módulo de dados (dados.py)
+    |
+    +--> Configurações do sistema (Google Sheets)
+    |       - Cadastro de lojas
+    |       - Nome da aba de origem
+    |       - Nome de exibição
+    |       - Status ativo/inativo
+    |       - Configurações de metas, conforme definido
+    |
+    +--> Abas operacionais das lojas
+            - Pedidos
+            - Vendas
+            - Faturamento
+
+Fluxo:
+1. O dashboard solicita os dados ao módulo de dados.
+2. O módulo lê as configurações.
+3. O sistema valida as lojas ativas e verifica se as abas de origem existem.
+4. O sistema carrega os dados das abas válidas.
+5. Os dados são tratados e consolidados.
+6. O dashboard apresenta indicadores, gráficos, filtros e tabelas.
+
+3. CONFIGURAÇÃO CENTRALIZADA DE LOJAS
+
+Substituir a lista fixa de lojas no código por uma configuração centralizada.
+
+Exemplo para a aba "Configurações":
+
+ID | ABA_ORIGEM | NOME_EXIBICAO | ATIVA
+1  | Poliana/Uberlândia | Poliana Uberlândia | VERDADEIRO
+2  | Loja 02            | Uberaba             | VERDADEIRO
+3  | Loja 03            | Araguari            | VERDADEIRO
+4  | Loja 04            | Patos de Minas      | FALSO
+
+Campos:
+- ID: identificador estável da loja.
+- ABA_ORIGEM: nome exato da aba do Google Sheets que contém os dados.
+- NOME_EXIBICAO: nome apresentado ao usuário no dashboard.
+- ATIVA: indica se a loja participa da leitura e dos filtros.
+
+Regra importante:
+O nome da aba de origem é diferente do nome de exibição. Alterar o nome de exibição não deve exigir renomear a aba de dados. Se a aba de origem for renomeada, a configuração correspondente também deverá ser atualizada.
+
+4. PAINEL ADMINISTRATIVO
+
+Criar uma área administrativa com acesso restrito.
+
+Funcionalidades:
+- Listar lojas cadastradas.
+- Alterar nome de exibição.
+- Ativar ou desativar uma loja.
+- Cadastrar loja, informando aba de origem e nome de exibição.
+- Validar a existência da aba antes de salvar.
+- Exibir mensagens claras em caso de erro.
+- Registrar alterações administrativas.
+
+A interface deve permitir apenas mudanças autorizadas. Não deve permitir que usuários comuns alterem fórmulas, regras de cálculo, credenciais ou código.
+
+5. RESPONSABILIDADES
+
+Empresa:
+- Alterar nomes de exibição.
+- Ativar ou desativar lojas, conforme permissão.
+- Atualizar metas autorizadas.
+- Consultar os resultados.
+
+Desenvolvedor/responsável técnico:
+- Manter código e arquitetura.
+- Corrigir falhas.
+- Alterar fórmulas e regras de negócio.
+- Criar indicadores e funcionalidades.
+- Atualizar dependências e controles de segurança.
+- Publicar novas versões.
+
+6. REGRAS DE VALIDAÇÃO
+
+Antes de aplicar uma configuração:
+- Verificar campos obrigatórios.
+- Verificar se a aba de origem existe.
+- Impedir cadastros duplicados indevidos.
+- Validar formatos.
+- Não carregar abas inativas.
+- Tratar abas ausentes sem derrubar todo o dashboard.
+- Informar qual loja apresentou erro.
+
+Os nomes configurados precisam corresponder às abas existentes no Google Sheets.
+
+7. CACHE E ATUALIZAÇÃO
+
+Se o projeto utilizar cache do Streamlit:
+- Definir validade do cache.
+- Permitir atualização após mudanças administrativas.
+- Limpar ou invalidar o cache quando uma configuração relevante mudar.
+- Evitar dados antigos após alterações.
+
+Após mudanças estruturais, testar a leitura antes de disponibilizar a versão em produção.
+
+8. SEGURANÇA E ACESSO
+
+Para produção:
+- Restringir a área administrativa.
+- Separar permissões de consulta e administração.
+- Manter credenciais fora do código-fonte.
+- Guardar secrets apenas no ambiente seguro do servidor.
+- Não expor a conta de serviço aos usuários.
+- Registrar alterações importantes.
+- Manter backups.
+- Prever recuperação de configurações anteriores.
+
+9. ESTRUTURA SUGERIDA DO PROJETO
+
+gwm_dashboard/
+|
+|-- app.py
+|   Interface principal, filtros, indicadores, gráficos e páginas.
+|
+|-- dados.py
+|   Leitura, validação, tratamento e consolidação dos dados.
+|
+|-- admin.py (ou página administrativa do Streamlit)
+|   Interface para gerenciamento das configurações.
+|
+|-- .streamlit/
+|   Configurações locais do Streamlit e secrets do ambiente.
+|
+|-- tests/
+|   Testes de leitura, validação, consolidação e regras de negócio.
+|
+|-- requirements.txt
+|   Dependências do projeto.
+
+A estrutura é uma proposta. A implementação deve respeitar os arquivos e a organização existentes.
+
+10. PLANO DE IMPLEMENTAÇÃO
+
+Etapa 1 — Configuração centralizada
+- Definir a estrutura da aba Configurações.
+- Implementar a leitura das configurações.
+- Substituir a lista fixa de lojas em dados.py.
+- Validar nomes e abas existentes.
+
+Etapa 2 — Integração com o dashboard
+- Fazer os filtros utilizarem as lojas configuradas.
+- Garantir nomes de exibição corretos em gráficos e tabelas.
+- Revisar indicadores e metas para evitar inconsistências.
+
+Etapa 3 — Administração
+- Criar área administrativa restrita.
+- Implementar edição e cadastro de lojas.
+- Validar antes de salvar.
+- Registrar alterações.
+
+Etapa 4 — Testes e produção
+- Testar alteração de nome de exibição.
+- Testar ativação e desativação.
+- Testar aba inexistente.
+- Testar cache e atualização.
+- Verificar permissões e credenciais.
+- Fazer backup e validar recuperação.
+- Publicar somente após os testes.
+
+11. CRITÉRIOS DE ACEITE
+
+A arquitetura estará funcionando quando:
+- Alterar o nome de exibição não exigir mudança no código.
+- Lojas inativas não aparecerem nos filtros nem nos indicadores, conforme as regras definidas.
+- Uma aba inexistente gerar aviso claro, sem interromper desnecessariamente o dashboard.
+- O sistema utilizar a configuração atualizada após o recarregamento ou atualização prevista.
+- Somente usuários autorizados puderem alterar configurações.
+- Fórmulas e regras de negócio permanecerem protegidas.
+
+12. OBSERVAÇÕES
+
+Esta arquitetura é uma proposta de evolução do dashboard atual, não uma implementação concluída.
+
+O painel administrativo demonstrado visualmente é ilustrativo. Ele não está conectado ao Google Sheets nem grava alterações reais.
+
+Antes de desenvolver, revisar a estrutura atual da planilha, especialmente as abas Configurações, Metas e as abas operacionais, para definir os campos reais e evitar incompatibilidades.
+
+Recomendação: implementar primeiro a configuração centralizada das lojas. Depois, construir a interface administrativa. Essa sequência reduz o risco de regressões e elimina a dependência de nomes fixos no código.
+
+
+13. ARQUITETURA DE DADOS — ESTRUTURA 2026
+
+13.1 Organização das fontes
+
+A fonte operacional continuará sendo o Google Sheets. A estrutura prevista passa a utilizar quatro arquivos separados, um para cada unidade acompanhada pelo dashboard:
+
+- GWM Uberlândia — CNPJ 48.337.247/0003-96
+- GWM Uberaba — CNPJ 48.337.247/0008-09
+- GWM Passos — CNPJ 48.337.247/0009-81
+- GWM Patos de Minas — CNPJ 48.337.247/0010-15
+
+Cada arquivo deverá conter 12 abas mensais (Janeiro a Dezembro) e uma aba denominada "Orçamento 2026".
+
+O CNPJ será a chave de identificação da unidade nos dados consolidados. O ID do Google Sheets continuará sendo um identificador técnico separado, utilizado para localizar cada arquivo. O nome de exibição também será independente desses identificadores.
+
+A lista acima representa as quatro unidades definidas para este dashboard. Outros estabelecimentos que apareçam na planilha original não serão incluídos automaticamente no escopo.
+
+13.2 Padrão das abas mensais
+
+As abas mensais dos quatro arquivos deverão utilizar os mesmos campos, na mesma ordem:
+
+A | DATA PEDIDO
+B | DATA FAT
+C | TIPO
+D | STATUS
+E | CHASSI
+F | FAMILIA
+G | COR
+H | NOME CLIENTE
+I | VEND
+J | LOCAL
+K | VENDA
+L | CUSTO
+M | INCID
+N | LB
+O | OBS
+P | OBS2
+
+As colunas operacionais padronizadas vão de A a P. Colunas vazias adicionais não fazem parte do modelo de dados definido.
+
+A coluna LB representa o lucro bruto. A regra atualmente utilizada no código é:
+
+LB = VENDA - CUSTO - INCID
+
+Para devoluções, o código atual considera o lucro bruto como negativo. Essa regra deverá ser confrontada com os registros reais e com a planilha original antes de ser considerada validada para todas as situações.
+
+A leitura deverá tolerar células vazias e preservar os campos de texto. Datas e valores numéricos deverão ser normalizados no Python, sem alterar os dados de origem durante a leitura.
+
+13.3 Orçamento 2026
+
+Cada arquivo de unidade terá uma aba "Orçamento 2026". O conteúdo deverá preservar as informações relevantes do modelo original, que apresenta orçamento por família/modelo e por mês, incluindo valores de orçamento e informações de margem.
+
+O formato definitivo dessa aba ainda deverá ser especificado a partir da análise dos dados reais da planilha original. Não assumir que uma estrutura simplificada de metas mensais substitui o orçamento detalhado.
+
+O módulo de dados deverá distinguir orçamento de metas comerciais e de resultados realizados. Os indicadores de comparação só deverão ser implementados depois de confirmar a correspondência entre os campos do orçamento e os dados de vendas.
+
+13.4 Cadastro das unidades e acesso
+
+O cadastro central das lojas deverá contemplar, no mínimo:
+
+CNPJ | NOME_EXIBICAO | RESPONSAVEL | PLANILHA_ID | ATIVA
+
+O CNPJ identifica a unidade; PLANILHA_ID identifica o arquivo Google Sheets. Não utilizar o nome do gerente como identificador da loja.
+
+Perfis previstos:
+
+- Clayton — Master: acesso administrativo e visão consolidada das quatro unidades.
+- Poliana — Gerente: acesso à unidade de Uberlândia.
+- Fernanda — Gerente: acesso à unidade de Uberaba.
+- Gerente 01 — Gerente: acesso à unidade de Patos de Minas.
+- Gerente 02 — Gerente: acesso à unidade de Passos.
+
+A autenticação e a aplicação efetiva das permissões ainda não estão implementadas. A restrição deverá ser aplicada no servidor, não apenas por filtros visuais do dashboard. A credencial da conta de serviço do Google não deverá ser exposta aos usuários.
+
+13.5 Fluxo de consolidação atualizado
+
+1. O módulo de dados obtém o cadastro das quatro unidades e seus IDs de planilha.
+2. Para cada unidade, lê as abas mensais previstas e a aba "Orçamento 2026".
+3. Valida a existência das abas e a compatibilidade dos cabeçalhos.
+4. Normaliza datas, textos e valores numéricos.
+5. Acrescenta o CNPJ e o nome da unidade aos registros consolidados.
+6. Consolida os dados operacionais sem misturar a origem das unidades.
+7. Calcula os indicadores com regras centralizadas em Python.
+8. Entrega ao dashboard os dados consolidados e os dados de orçamento.
+9. O dashboard aplica os filtros e as permissões do perfil autenticado.
+
+Falhas em uma unidade deverão gerar mensagens que identifiquem a fonte com problema. O tratamento de erros não deverá ocultar silenciosamente dados ausentes nem apresentar resultados parciais como se fossem completos.
+
+13.6 Migração e validação da Fase 1
+
+A migração deverá ocorrer de forma incremental:
+
+1. Confirmar os cabeçalhos e o formato das abas mensais.
+2. Definir e conferir o layout da aba "Orçamento 2026" com base no original.
+3. Cadastrar os quatro CNPJs e os respectivos IDs dos arquivos.
+4. Adaptar dados.py para ler múltiplos arquivos e consolidar as unidades.
+5. Validar os registros carregados, incluindo datas, status, valores e duplicidades.
+6. Comparar faturamento, quantidade de vendas, lucro bruto e orçamento com os totais de referência da planilha original.
+7. Somente após a validação, conectar a nova fonte ao app.py.
+
+A aparência e os componentes atuais do dashboard deverão ser preservados durante essa etapa. A prioridade é garantir equivalência dos dados e dos cálculos antes de acrescentar novos indicadores.
+
+13.7 Pontos ainda pendentes
+
+- Confirmar se as 12 abas mensais conterão o ano de 2026 e como será feita a virada de ano.
+- Definir o layout final da aba "Orçamento 2026", incluindo todos os campos necessários.
+- Confirmar se a coluna LB será preenchida por fórmula na planilha, calculada pelo Apps Script ou calculada exclusivamente no Python para fins analíticos.
+- Definir onde ficará o cadastro central dos arquivos e das permissões.
+- Definir o mecanismo de autenticação compatível com o ambiente de hospedagem.
+
+Até que esses pontos sejam definidos e testados, a nova arquitetura deve ser tratada como especificação, não como implementação concluída.

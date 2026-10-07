@@ -21,7 +21,7 @@ ANO_ORCAMENTO = int(re.search(r"\d{4}", ABA_ORCAMENTO).group())
 COLUNAS_OPERACIONAIS = [
     "DATA PEDIDO", "DATA FAT", "TIPO", "STATUS", "CHASSI", "FAMILIA",
     "COR", "NOME CLIENTE", "VEND", "LOCAL", "VENDA", "CUSTO", "INCID",
-    "LB", "OBS", "OBS2", "TEST DRIVE", "CAPTAÇÃO",
+    "LB", "OBS", "OBS2", "TEST DRIVE", "CAPTAÇÃO", "MODELO", "PLACA", "EMISSÃO",
 ]
 
 
@@ -221,52 +221,178 @@ def preparar(blocos, orcamentos=None):
 
 def indicadores(base, ini, fim):
     """Calcula indicadores do período (datas inclusivas)."""
+
     ini, fim = pd.Timestamp(ini), pd.Timestamp(fim)
+
     no_fat = base["DATA FAT"].between(ini, fim)
     no_ped = base["DATA PEDIDO"].between(ini, fim)
-    fat = base[(base["STATUS_N"] == "faturado") & no_fat]
-    dev = base[(base["STATUS_N"] == "devolucao") & no_fat]
-    canc = base[(base["STATUS_N"] == "cancelado") & no_ped]
-    # Aguardando = status "Aguardando faturamento" (planilhas antigas) OU pedido ainda sem status
-    aguard = base[(base["STATUS_N"] == "aguardando faturamento")
-                  | ((base["STATUS_N"] == "") & base["DATA PEDIDO"].notna())]
-    return {
-        "valor": float(fat["VENDA"].sum()), "qtd": len(fat),
-        "lb": float(fat["LB"].sum() + dev["LB"].sum()),
-        "dev_n": len(dev), "canc_n": len(canc), "aguard_n": len(aguard),
-        "fat": fat, "dev": dev, "canc": canc, "aguard": aguard,
+
+    status = base["STATUS_N"].map(norm)
+    tipo = base["TIPO"].map(norm)
+
+    # =========================
+    # VENDAS FATURADAS
+    # =========================
+    fat = base[
+        (status == "faturado") &
+        no_fat
+    ].copy()
+
+    # =========================
+    # VENDAS 0 KM
+    # =========================
+    tipos_0km = {
+        "pedido",
+        "firmorder",
+        "emplacado",
     }
 
+    fat_0km = fat[
+        fat["TIPO"].map(norm).isin(tipos_0km)
+    ].copy()
 
-def meta_periodo(metas, lojas, ini, fim):
-    """Mantido por compatibilidade; metas detalhadas serão integradas após validar o layout."""
-    if metas.empty:
-        return 0.0
-    meses = pd.period_range(pd.Timestamp(ini), pd.Timestamp(fim), freq="M")
-    m = metas[metas["MES"].isin(meses) & metas["LOJA"].isin(lojas)]
-    return float(m["META_FAT"].sum())
+    # =========================
+    # VENDAS DE USADOS
+    # =========================
+    fat_usado = fat[
+        fat["TIPO"].map(norm) == "usado"
+    ].copy()
+
+    # =========================
+    # DEVOLUÇÕES
+    # =========================
+    dev = base[
+        (status == "devolucao") &
+        no_fat
+    ]
+
+    # =========================
+    # CANCELAMENTOS
+    # =========================
+    canc = base[
+        (status == "cancelado") &
+        no_ped
+    ]
+
+    # =========================
+    # AGUARDANDO FATURAMENTO
+    # =========================
+    aguard = base[
+        (status == "aguardando faturamento") |
+        (
+            (status == "") &
+            base["DATA PEDIDO"].notna()
+        )
+    ]
+
+    return {
+        # Faturamento TOTAL
+        "valor": float(fat["VENDA"].sum()),
+
+        # Quantidade TOTAL faturada
+        "qtd": len(fat),
+
+        # NOVOS INDICADORES
+        "qtd_0km": len(fat_0km),
+        "qtd_usado": len(fat_usado),
+
+        "valor_0km": float(fat_0km["VENDA"].sum()),
+        "valor_usado": float(fat_usado["VENDA"].sum()),
+
+        # Lucro
+        "lb": float(
+            fat["LB"].sum() +
+            dev["LB"].sum()
+        ),
+
+        "dev_n": len(dev),
+        "canc_n": len(canc),
+        "aguard_n": len(aguard),
+
+        # Bases
+        "fat": fat,
+        "fat_0km": fat_0km,
+        "fat_usado": fat_usado,
+        "dev": dev,
+        "canc": canc,
+        "aguard": aguard,
+    }
 
 def indicadores_extras(base, ini, fim):
-    """Test drive, emplacados e usado na troca.
-
-    Base: PEDIDOS do período (DATA PEDIDO dentro do intervalo), sem cancelados.
-      - Test drive: coluna TEST DRIVE = Sim
-      - Emplacados: coluna TIPO = Emplacado
-      - Usado na troca: coluna CAPTAÇÃO = Sim
-    Os percentuais são sobre o total de pedidos válidos do período.
     """
-    ini, fim = pd.Timestamp(ini), pd.Timestamp(fim)
-    ped = base[base["DATA PEDIDO"].between(ini, fim) & (base["STATUS_N"] != "cancelado")]
-    n = len(ped)
-    td = int((ped["TEST DRIVE"].map(norm) == "sim").sum())
-    cap = int((ped["CAPTAÇÃO"].map(norm) == "sim").sum())
-    emp = int((ped["TIPO"].map(norm) == "emplacado").sum())
-    return {
-        "pedidos": n, "td_n": td, "cap_n": cap, "emp_n": emp,
-        "td_pct": td / n if n else 0.0, "cap_pct": cap / n if n else 0.0,
-        "emp_pct": emp / n if n else 0.0, "ped": ped,
-    }
+    Indicadores comerciais do período.
 
+    Pedidos:
+        Todas as linhas cuja DATA PEDIDO esteja no período.
+
+    Test Drive:
+        TEST DRIVE = Sim.
+
+    Emplacados:
+        TIPO = Emplacado
+        e STATUS = Faturado.
+
+    Usado na troca:
+        CAPTAÇÃO = Sim
+        e STATUS = Faturado.
+
+    Os percentuais são sobre todos os pedidos do período.
+    """
+
+    ini, fim = pd.Timestamp(ini), pd.Timestamp(fim)
+
+    # ==========================================
+    # PEDIDOS DO PERÍODO
+    # ==========================================
+    ped = base[
+        base["DATA PEDIDO"].between(ini, fim)
+    ].copy()
+
+    n = len(ped)
+
+    status = ped["STATUS_N"].map(norm)
+    tipo = ped["TIPO"].map(norm)
+
+    # ==========================================
+    # TEST DRIVE
+    # ==========================================
+    td = int(
+        (ped["TEST DRIVE"].map(norm) == "sim").sum()
+    )
+
+    # ==========================================
+    # EMPLACADOS
+    # ==========================================
+    emp = int(
+        (
+            (tipo == "emplacado") &
+            (status == "faturado")
+        ).sum()
+    )
+
+    # ==========================================
+    # USADO NA TROCA
+    # ==========================================
+    cap = int(
+        (
+            (ped["CAPTAÇÃO"].map(norm) == "sim") &
+            (status == "faturado")
+        ).sum()
+    )
+
+    return {
+        "pedidos": n,
+
+        "td_n": td,
+        "emp_n": emp,
+        "cap_n": cap,
+
+        "td_pct": td / n if n else 0.0,
+        "emp_pct": emp / n if n else 0.0,
+        "cap_pct": cap / n if n else 0.0,
+
+        "ped": ped,
+    }
 
 def extras_por_vendedor(ped):
     """Quantidade de pedidos, test drives, emplacados e usados na troca por vendedor."""
