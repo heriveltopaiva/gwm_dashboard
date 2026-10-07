@@ -218,6 +218,23 @@ def preparar(blocos, orcamentos=None):
     v.loc[devolucao, "LB"] = -v.loc[devolucao, "LB"].abs()
     return v.reset_index(drop=True), metas
 
+def meta_periodo(metas, lojas, ini, fim):
+    """Soma a meta de faturamento das lojas no período selecionado."""
+    if metas.empty:
+        return 0.0
+
+    meses = pd.period_range(
+        pd.Timestamp(ini),
+        pd.Timestamp(fim),
+        freq="M"
+    )
+
+    m = metas[
+        metas["MES"].isin(meses)
+        & metas["LOJA"].isin(lojas)
+    ]
+
+    return float(m["META_FAT"].sum())
 
 def indicadores(base, ini, fim):
     """Calcula indicadores do período (datas inclusivas)."""
@@ -255,7 +272,7 @@ def indicadores(base, ini, fim):
     # VENDAS DE USADOS
     # =========================
     fat_usado = fat[
-        fat["TIPO"].map(norm) == "usado"
+    (fat["TIPO"].map(norm) == "usado")
     ].copy()
 
     # =========================
@@ -319,6 +336,7 @@ def indicadores(base, ini, fim):
     }
 
 def indicadores_extras(base, ini, fim):
+
     """
     Indicadores comerciais do período.
 
@@ -375,9 +393,8 @@ def indicadores_extras(base, ini, fim):
     # ==========================================
     cap = int(
         (
-            (ped["CAPTAÇÃO"].map(norm) == "sim") &
-            (status == "faturado")
-        ).sum()
+            (ped["CAPTAÇÃO"].map(norm) == "sim").sum()
+        )
     )
 
     return {
@@ -395,14 +412,49 @@ def indicadores_extras(base, ini, fim):
     }
 
 def extras_por_vendedor(ped):
-    """Quantidade de pedidos, test drives, emplacados e usados na troca por vendedor."""
+    """
+    Quantidade de pedidos, test drives, emplacados e usados na troca por vendedor.
+
+    Regras:
+    - Pedidos: todos os pedidos recebidos no período.
+    - Test drive: TEST DRIVE = Sim.
+    - Emplacados: TIPO = Emplacado + STATUS = Faturado.
+    - Usado na troca: CAPTAÇÃO = Sim + STATUS = Faturado.
+    """
     if ped.empty:
-        return pd.DataFrame(columns=["VEND", "Pedidos", "Test drive", "Emplacados", "Usado na troca"])
+        return pd.DataFrame(
+            columns=[
+                "VEND",
+                "Pedidos",
+                "Test drive",
+                "Emplacados",
+                "Usado na troca",
+            ]
+        )
+
+    status = ped["STATUS_N"].map(norm)
+
     g = pd.DataFrame({
         "VEND": ped["VEND"].replace("", "(sem vendedor)"),
+
+        # Todos os pedidos
         "Pedidos": 1,
-        "Test drive": (ped["TEST DRIVE"].map(norm) == "sim").astype(int),
-        "Emplacados": (ped["TIPO"].map(norm) == "emplacado").astype(int),
-        "Usado na troca": (ped["CAPTAÇÃO"].map(norm) == "sim").astype(int),
+
+        # Atividade comercial
+        "Test drive": (
+            ped["TEST DRIVE"].map(norm) == "sim"
+        ).astype(int),
+
+        # Somente efetivamente faturados
+        "Emplacados": (
+            (ped["TIPO"].map(norm) == "emplacado") &
+            (status == "faturado")
+        ).astype(int),
+
+        # Somente troca efetivamente vinculada a uma venda faturada
+        "Usado na troca": (
+            (ped["CAPTAÇÃO"].map(norm) == "sim") 
+        ).astype(int),
     })
+
     return g.groupby("VEND", as_index=False).sum()

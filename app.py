@@ -697,8 +697,10 @@ if not lojas_sel:
     st.stop()
 
 # ------------------------------------------------------------
-# CORREÇÃO 4: base renomeada para base_loja_vendedor.
-# Filtra APENAS por loja e vendedor; datas ficam em dados.indicadores().
+# BASE PARA OS CÁLCULOS
+# Filtra APENAS por loja e vendedor.
+# A regra de data é aplicada dentro de dados.indicadores(),
+# porque cada indicador usa a data correta (DATA PEDIDO ou DATA FAT).
 # ------------------------------------------------------------
 base_loja_vendedor = vendas[vendas["LOJA"].isin(lojas_sel)]
 if vend_sel:
@@ -706,16 +708,13 @@ if vend_sel:
         base_loja_vendedor["VEND"].isin(vend_sel)
     ]
 
-if periodo_tipo == "Mês selecionado":
-    if not meses_sel:
-        base_loja_vendedor = base_loja_vendedor.iloc[0:0]
-    else:
-        data_ref = base_loja_vendedor["DATA FAT"].fillna(base_loja_vendedor["DATA PEDIDO"])
-        base_loja_vendedor = base_loja_vendedor[
-            data_ref.dt.year.eq(ano_sel) & data_ref.dt.month.isin(meses_sel)
-        ]
-
 r = dados.indicadores(base_loja_vendedor, ini, fim)
+st.write("DEBUG USADOS:", len(r["fat_usado"]))
+st.dataframe(
+    r["fat_usado"][
+        ["DATA PEDIDO", "DATA FAT", "TIPO", "STATUS", "CAPTAÇÃO", "MODELO"]
+    ]
+)
 meta = dados.meta_periodo(metas, lojas_sel, ini, fim)
 
 # ------------------------------------------------------------
@@ -738,7 +737,14 @@ with aba_dashboard:
 
     k1, k2, k3, k4, k5, k6 = st.columns(6)
     with k1:
-        st.markdown(kpi_html("VEÍCULOS VENDIDOS", f"{r['qtd']:,}".replace(",", "."), "período atual"), unsafe_allow_html=True)
+        st.markdown(
+            kpi_html(
+                "VEÍCULOS 0 KM VENDIDOS",
+                f"{r['qtd_0km']:,}".replace(",", "."),
+                "período atual",
+            ),
+            unsafe_allow_html=True,
+        )
     with k2:
         st.markdown(kpi_html("FATURAMENTO", moeda(r["valor"]), "vendas faturadas", True), unsafe_allow_html=True)
     with k3:
@@ -760,17 +766,53 @@ with aba_dashboard:
 
     st.markdown("")
 
-    # ---- Test drive, emplacamento e usado na troca (pedidos do período) ----
+    # ---- Indicadores comerciais relacionados aos pedidos do período ----
     ex = dados.indicadores_extras(base_loja_vendedor, ini, fim)
-    e1, e2, e3, e4 = st.columns(4)
+    e1, e2, e3, e4, e5 = st.columns(5)
     with e1:
-        st.markdown(kpi_html("PEDIDOS DO PERÍODO", f"{ex['pedidos']}", "sem cancelados"), unsafe_allow_html=True)
+        st.markdown(
+            kpi_html("PEDIDOS DO PERÍODO", f"{ex['pedidos']}", "todos os pedidos"),
+            unsafe_allow_html=True,
+        )
     with e2:
-        st.markdown(kpi_html("TEST DRIVE", f"{ex['td_n']}", f"{pct(ex['td_pct'])} dos pedidos", True), unsafe_allow_html=True)
+        st.markdown(
+            kpi_html(
+                "USADOS VENDIDOS",
+                f"{r['qtd_usado']:,}".replace(",", "."),
+                "vendas faturadas",
+            ),
+            unsafe_allow_html=True,
+        )
     with e3:
-        st.markdown(kpi_html("EMPLACADOS", f"{ex['emp_n']}", f"{pct(ex['emp_pct'])} dos pedidos", True), unsafe_allow_html=True)
+        st.markdown(
+            kpi_html(
+                "TEST DRIVE",
+                f"{ex['td_n']}",
+                f"{pct(ex['td_pct'])} dos pedidos",
+                True,
+            ),
+            unsafe_allow_html=True,
+        )
     with e4:
-        st.markdown(kpi_html("USADO NA TROCA", f"{ex['cap_n']}", f"{pct(ex['cap_pct'])} dos pedidos", True), unsafe_allow_html=True)
+        st.markdown(
+            kpi_html(
+                "EMPLACADOS",
+                f"{ex['emp_n']}",
+                f"{pct(ex['emp_pct'])} dos pedidos",
+                True,
+            ),
+            unsafe_allow_html=True,
+        )
+    with e5:
+        st.markdown(
+            kpi_html(
+                "USADO NA TROCA",
+                f"{ex['cap_n']}",
+                f"{pct(ex['cap_pct'])} dos pedidos",
+                True,
+            ),
+            unsafe_allow_html=True,
+        )
     if ex["pedidos"] and not (ex["td_n"] or ex["cap_n"] or ex["emp_n"]):
         st.caption(
             "Ainda não há registros de TEST DRIVE, CAPTAÇÃO ou TIPO = Emplacado nos pedidos deste período. "
