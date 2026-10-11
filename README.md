@@ -5,7 +5,7 @@ Dashboard web para acompanhamento de vendas, lucro bruto e metas das unidades GW
 ## 🚀 Acesso
 
 - **Produção:** [em breve no Streamlit Cloud]
-- **Local:** `streamlit run app.py` → http://localhost:8501
+
 
 ## 🔐 Autenticação
 
