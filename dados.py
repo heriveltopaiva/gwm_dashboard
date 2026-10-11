@@ -8,9 +8,9 @@ import pandas as pd
 # Cadastro técnico das quatro unidades. Os IDs são preenchidos em secrets.toml.
 UNIDADES = [
     {"chave": "uberlandia", "cnpj": "48.337.247/0003-96", "nome": "GWM Uberlândia", "responsavel": "Poliana"},
-    {"chave": "uberaba", "cnpj": "48.337.247/0008-09", "nome": "GWM Uberaba", "responsavel": "Fernanda"},
-    {"chave": "passos", "cnpj": "48.337.247/0009-81", "nome": "GWM Passos", "responsavel": "Gerente 02"},
-    {"chave": "patos_de_minas", "cnpj": "48.337.247/0010-15", "nome": "GWM Patos de Minas", "responsavel": "Gerente 01"},
+    {"chave": "uberaba", "cnpj": "48.337.247/0003-97", "nome": "GWM Uberaba", "responsavel": "Fernanda"},
+    {"chave": "passos", "cnpj": "48.337.247/0003-98", "nome": "GWM Passos", "responsavel": "Gerente 02"},
+    {"chave": "patos_de_minas", "cnpj": "48.337.247/0003-97", "nome": "GWM Patos de Minas", "responsavel": "Gerente 01"},
 ]
 MESES = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",

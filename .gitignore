@@ -16,6 +16,7 @@ __pycache__/
 # Credenciais
 config/credentials.json
 service-account*.json
+auth.py
 
 # Temporários
 *.log
@@ -27,3 +28,5 @@ service-account*.json
 .DS_Store
 Thumbs.db
 notebooks_and_tests/
+saida/
+backup/

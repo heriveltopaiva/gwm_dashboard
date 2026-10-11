@@ -20,6 +20,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 import dados
+import auth
 
 # ============================================================
 # CONFIGURAÇÃO
@@ -244,6 +245,16 @@ st.markdown(
         margin-top: 5px;
     }}
 
+        div[data-testid="stMultiSelectTagsContainer"] span[title*="Categoria"] {{
+        font-size: 0 !important;
+    }}
+    div[data-testid="stMultiSelectTagsContainer"] span[title*="Categoria"]::after {{
+        content: attr(title) !important;
+        font-size: 14px !important;
+    }}
+
+
+
     .positive {{ color: {GREEN}; }}
     .negative {{ color: {RED}; }}
     .neutral {{ color: {MUTED}; }}
@@ -456,11 +467,15 @@ def kpi_html(label, value, delta="", money=False, positive=None):
     </div>
     """
 
+# ============================================================
+# LOGIN
+# ============================================================
+if not auth.tela_login():
+    st.stop()
 
 # ============================================================
 # INÍCIO
 # ============================================================
-checar_senha()
 
 try:
     # IDs separados por unidade. Para facilitar a migração, o antigo
@@ -480,6 +495,11 @@ try:
             "[planilhas].uberlandia no secrets.toml."
         )
     vendas, metas, avisos_leitura, unidades_lidas, lido_em = carregar(ids_planilhas)
+
+    # Restringe às lojas que o usuário pode ver
+    lojas_permitidas = auth.lojas_do_usuario()
+    if lojas_permitidas:
+        vendas = vendas[vendas["LOJA"].isin(lojas_permitidas)].copy()
 
     # Compatibilidade com diferentes nomes de coluna vindos da planilha.
     # O restante do dashboard utiliza o nome interno "VEND".
@@ -524,23 +544,31 @@ hoje = dt.datetime.now(FUSO).date()
 # ============================================================
 # HEADER
 # ============================================================
-st.markdown(
-    f"""
-    <div class="gwm-header">
-        <div class="gwm-brand">
-            <div class="gwm-logo">📊</div>
-            <div class="gwm-name">CLAYTON GWM <span>— Dashboard</span></div>
-        </div>
-        <div class="gwm-title">DASHBOARD DE LUCRATIVIDADE DE VENDAS</div>
-        <div class="gwm-update">
-            Atualizado em:<br>
-            <strong>{lido_em:%d/%m/%Y %H:%M}</strong>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+col_header, col_logout = st.columns([6, 1])
 
+with col_header:
+    st.markdown(
+        f"""
+        <div class="gwm-header">
+            <div class="gwm-brand">
+                <div class="gwm-logo">📊</div>
+                <div class="gwm-name">CLAYTON GWM <span>— Dashboard</span></div>
+            </div>
+            <div class="gwm-title">DASHBOARD DE LUCRATIVIDADE DE VENDAS</div>
+            <div class="gwm-update">
+                <strong>{auth.nome_usuario()}</strong><br>
+                {lido_em:%d/%m/%Y %H:%M}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with col_logout:
+    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+    if st.button("🚪 Sair", use_container_width=True, key="btn_logout"):
+        auth.logout()
+        
 # ============================================================
 # NAVEGAÇÃO PRINCIPAL
 # ============================================================
@@ -897,7 +925,7 @@ with aba_dashboard:
                 .sort_values("Faturamento", ascending=False)
             )
             rank["VEND"] = rank["VEND"].replace("", "(sem vendedor)")
-            top = rank.head(8).sort_values("Faturamento")
+            top = rank.sort_values("Faturamento")
             fig = px.bar(
                 top,
                 x="Faturamento",
@@ -933,7 +961,7 @@ with aba_dashboard:
                 .sort_values("Qtd", ascending=False)
             )
             mod["FAMILIA"] = mod["FAMILIA"].replace("", "(sem modelo)")
-            top_mod = mod.head(8).sort_values("Qtd")
+            top_mod = mod.sort_values("Qtd")
             fig = px.bar(
                 top_mod,
                 x="Qtd",
@@ -987,7 +1015,7 @@ with aba_dashboard:
     if por_vend.empty:
         st.info("Sem pedidos no período.")
     else:
-        por_vend = por_vend.sort_values("Pedidos", ascending=False).head(10)
+        por_vend = por_vend.sort_values("Pedidos", ascending=False).head(20)
         fig = go.Figure()
         for nome_serie, cor_serie in [("Test drive", CYAN), ("Emplacados", YELLOW), ("Usado na troca", GREEN)]:
             fig.add_bar(x=por_vend["VEND"], y=por_vend[nome_serie], name=nome_serie, marker_color=cor_serie)
@@ -1120,7 +1148,7 @@ with aba_ranking:
 
         with rc2:
             st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-            top = rank.head(10).sort_values("Faturamento")
+            top = rank.sort_values("Faturamento")
             fig = go.Figure()
             fig.add_bar(
                 y=top["VEND"],

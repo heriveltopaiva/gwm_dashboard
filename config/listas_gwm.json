@@ -1,0 +1,62 @@
+{
+  "listas": {
+    "tipo": [
+      "Firmorder",
+      "Pedido",
+      "Usado",
+      "Emplacado"
+    ],
+    "status": [
+      "Faturado",
+      "Cancelada",
+      "Devolução"
+    ],
+    "vendedores": [
+      "CAMILA",
+      "FERNANDA",
+      "KELBY",
+      "LUDMILLE",
+      "MARCOS",
+      "PATRICIA",
+      "POLIANA",
+      "WENDELL"
+    ],
+    "cores": [
+      "Azul topazio",
+      "Azul Cianita",
+      "Azul copacabana",
+      "Cinza diamante",
+      "Cinza Amazonita",
+      "Prata Lunar",
+      "Preto Hematita",
+      "Preto Khalifa",
+      "Vermelho Granada",
+      "Grafitte Zenith",
+      "Solar Gold",
+      "Verde Turmalina",
+      "VerdeEsmeralda",
+      "Branco",
+      "Laranja",
+      "Cinza Titanium"
+    ],
+    "simNao": [
+      "Sim",
+      "Não"
+    ]
+  },
+  "modelos": [
+    "ORA SKIN",
+    "ORA SKIN 58",
+    "ORA 5",
+    "HAVAL H6 HEV ONE",
+    "HAVAL H6 HEV 2",
+    "HAVAL H6 PHEV 19",
+    "HAVAL H6 PHEV 34",
+    "HAVAL H6 GT",
+    "HAVAL H9 EXCL.",
+    "TANK 300",
+    "POER P30 EXCL.",
+    "POER P30 TRAIL",
+    "WEY 07"
+  ]
+}
