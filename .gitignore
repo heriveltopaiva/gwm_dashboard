@@ -16,7 +16,6 @@ __pycache__/
 # Credenciais
 config/credentials.json
 service-account*.json
-auth.py
 
 # Temporários
 *.log
