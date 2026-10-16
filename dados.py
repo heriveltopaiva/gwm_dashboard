@@ -8,9 +8,9 @@ import pandas as pd
 # Cadastro técnico das quatro unidades. Os IDs são preenchidos em secrets.toml.
 UNIDADES = [
     {"chave": "uberlandia", "cnpj": "48.337.247/0003-96", "nome": "GWM Uberlândia", "responsavel": "Poliana"},
-    {"chave": "uberaba", "cnpj": "48.337.247/0003-97", "nome": "GWM Uberaba", "responsavel": "Fernanda"},
-    {"chave": "passos", "cnpj": "48.337.247/0003-98", "nome": "GWM Passos", "responsavel": "Gerente 02"},
-    {"chave": "patos_de_minas", "cnpj": "48.337.247/0003-97", "nome": "GWM Patos de Minas", "responsavel": "Gerente 01"},
+    {"chave": "uberaba", "cnpj": "48.337.247/0008-09", "nome": "GWM Uberaba", "responsavel": "Fernanda"},
+    {"chave": "passos", "cnpj": "48.337.247/0009-81", "nome": "GWM Passos", "responsavel": "Gerente 02"},
+    {"chave": "patos_de_minas", "cnpj": "48.337.247/0010-15", "nome": "GWM Patos de Minas", "responsavel": "Gerente 01"},
 ]
 MESES = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -28,6 +28,18 @@ COLUNAS_OPERACIONAIS = [
 def norm(texto):
     t = unicodedata.normalize("NFKD", str(texto)).encode("ascii", "ignore").decode()
     return t.strip().lower()
+
+
+# STATUS na ordem do processo de venda:
+#   Firmorder -> Pedido -> Faturado -> Emplacado   (Cancelada sai do fluxo)
+# Emplacado é a etapa DEPOIS de faturar: a venda já foi faturada e emplacada.
+STATUS_FATURADO = {"faturado", "emplacado"}
+STATUS_AGUARDANDO = {"aguardando faturamento", "firmorder", "pedido"}
+
+
+def eh_emplacado(status_n, tipo_n):
+    """STATUS = Emplacado (planilhas novas) ou, nas antigas, TIPO = Emplacado já faturado."""
+    return (status_n == "emplacado") | ((tipo_n == "emplacado") & (status_n == "faturado"))
 
 
 def _normalizar_cabecalho(valores):
@@ -68,7 +80,7 @@ def ler_planilhas(info_conta, ids_planilhas):
             meses_presentes = []
             for mes in MESES:
                 if mes in abas_existentes:
-                    intervalos.append(f"'{mes}'!A:R")
+                    intervalos.append(f"'{mes}'!A:U")
                     meses_presentes.append(mes)
                 else:
                     avisos.append(f"{unidade['nome']}: aba mensal '{mes}' não encontrada.")
@@ -202,9 +214,9 @@ def preparar(blocos, orcamentos=None):
     for c in COLUNAS_OPERACIONAIS:
         if c not in v.columns:
             v[c] = ""
-    for c in ["DATA PEDIDO", "DATA FAT"]:
+    for c in ["DATA PEDIDO", "DATA FAT", "EMISSÃO"]:
         v[c] = _datas(v[c])
-    for c in ["TIPO", "STATUS", "CHASSI", "FAMILIA", "COR", "NOME CLIENTE", "VEND", "LOCAL", "OBS", "OBS2", "TEST DRIVE", "CAPTAÇÃO"]:
+    for c in ["TIPO", "STATUS", "CHASSI", "FAMILIA", "COR", "NOME CLIENTE", "VEND", "LOCAL", "OBS", "OBS2", "TEST DRIVE", "CAPTAÇÃO", "MODELO", "PLACA"]:
         v[c] = v[c].fillna("").astype(str).str.strip()
     for c in ["VENDA", "CUSTO", "INCID"]:
         v[c] = _numero(v[c])
@@ -251,28 +263,38 @@ def indicadores(base, ini, fim):
     # VENDAS FATURADAS
     # =========================
     fat = base[
-        (status == "faturado") &
+        status.isin(STATUS_FATURADO) &
         no_fat
+    ].copy()
+
+    # =========================
+    # SEGMENTOS DE VENDAS
+    # =========================
+    fat_novo = fat[
+    fat["TIPO"].map(norm) == "veiculo novo"
+    ].copy()
+
+    fat_venda_direta = fat[
+    fat["TIPO"].map(norm) == "venda direta"
+    ].copy()
+
+    fat_usado = fat[
+    fat["TIPO"].map(norm) == "veiculo usado"
     ].copy()
 
     # =========================
     # VENDAS 0 KM
     # =========================
-    tipos_0km = {
-        "pedido",
-        "firmorder",
-        "emplacado",
-    }
-
-    fat_0km = fat[
-        fat["TIPO"].map(norm).isin(tipos_0km)
-    ].copy()
+    fat_0km = pd.concat(
+    [fat_novo, fat_venda_direta],
+    ignore_index=True
+    )
 
     # =========================
     # VENDAS DE USADOS
     # =========================
     fat_usado = fat[
-    (fat["TIPO"].map(norm) == "usado")
+    (fat["TIPO"].map(norm) == "veiculo usado")
     ].copy()
 
     # =========================
@@ -295,7 +317,7 @@ def indicadores(base, ini, fim):
     # AGUARDANDO FATURAMENTO
     # =========================
     aguard = base[
-        (status == "aguardando faturamento") |
+        status.isin(STATUS_AGUARDANDO) |
         (
             (status == "") &
             base["DATA PEDIDO"].notna()
@@ -309,14 +331,18 @@ def indicadores(base, ini, fim):
         # Quantidade TOTAL faturada
         "qtd": len(fat),
 
-        # NOVOS INDICADORES
+        ## INDICADORES POR SEGMENTO
         "qtd_0km": len(fat_0km),
+        "qtd_novo": len(fat_novo),
+        "qtd_venda_direta": len(fat_venda_direta),
         "qtd_usado": len(fat_usado),
 
         "valor_0km": float(fat_0km["VENDA"].sum()),
+        "valor_novo": float(fat_novo["VENDA"].sum()),
+        "valor_venda_direta": float(fat_venda_direta["VENDA"].sum()),
         "valor_usado": float(fat_usado["VENDA"].sum()),
 
-        # Lucro
+                # Lucro
         "lb": float(
             fat["LB"].sum() +
             dev["LB"].sum()
@@ -347,12 +373,11 @@ def indicadores_extras(base, ini, fim):
         TEST DRIVE = Sim.
 
     Emplacados:
-        TIPO = Emplacado
-        e STATUS = Faturado.
+        STATUS = Emplacado (etapa depois de Faturado).
 
     Usado na troca:
         CAPTAÇÃO = Sim
-        e STATUS = Faturado.
+        e STATUS = Faturado ou Emplacado.
 
     Os percentuais são sobre todos os pedidos do período.
     """
@@ -381,20 +406,16 @@ def indicadores_extras(base, ini, fim):
     # ==========================================
     # EMPLACADOS
     # ==========================================
-    emp = int(
-        (
-            (tipo == "emplacado") &
-            (status == "faturado")
-        ).sum()
-    )
+    emp = int(eh_emplacado(status, tipo).sum())
 
     # ==========================================
     # USADO NA TROCA
     # ==========================================
     cap = int(
         (
-            (ped["CAPTAÇÃO"].map(norm) == "sim").sum()
-        )
+            (ped["CAPTAÇÃO"].map(norm) == "sim") &
+            status.isin(STATUS_FATURADO)
+        ).sum()
     )
 
     return {
@@ -418,8 +439,8 @@ def extras_por_vendedor(ped):
     Regras:
     - Pedidos: todos os pedidos recebidos no período.
     - Test drive: TEST DRIVE = Sim.
-    - Emplacados: TIPO = Emplacado + STATUS = Faturado.
-    - Usado na troca: CAPTAÇÃO = Sim + STATUS = Faturado.
+    - Emplacados: STATUS = Emplacado.
+    - Usado na troca: CAPTAÇÃO = Sim + STATUS = Faturado ou Emplacado.
     """
     if ped.empty:
         return pd.DataFrame(
@@ -446,14 +467,12 @@ def extras_por_vendedor(ped):
         ).astype(int),
 
         # Somente efetivamente faturados
-        "Emplacados": (
-            (ped["TIPO"].map(norm) == "emplacado") &
-            (status == "faturado")
-        ).astype(int),
+        "Emplacados": eh_emplacado(status, ped["TIPO"].map(norm)).astype(int),
 
         # Somente troca efetivamente vinculada a uma venda faturada
         "Usado na troca": (
-            (ped["CAPTAÇÃO"].map(norm) == "sim") 
+            (ped["CAPTAÇÃO"].map(norm) == "sim") &
+            status.isin(STATUS_FATURADO)
         ).astype(int),
     })
 

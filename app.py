@@ -758,29 +758,64 @@ with aba_dashboard:
     st.markdown('<div class="section-title">Visão geral</div>', unsafe_allow_html=True)
 
     k1, k2, k3, k4, k5, k6 = st.columns(6)
+
     with k1:
         st.markdown(
             kpi_html(
                 "VEÍCULOS 0 KM VENDIDOS",
                 f"{r['qtd_0km']:,}".replace(",", "."),
-                "período atual",
+                "novos + venda direta",
             ),
             unsafe_allow_html=True,
         )
+
     with k2:
-        st.markdown(kpi_html("FATURAMENTO", moeda(r["valor"]), "vendas faturadas", True), unsafe_allow_html=True)
+        st.markdown(
+            kpi_html(
+                "VEÍCULOS NOVOS",
+                f"{r['qtd_novo']:,}".replace(",", "."),
+                "veículo novo",
+            ),
+            unsafe_allow_html=True,
+        )
+
     with k3:
-        st.markdown(kpi_html("LUCRO TOTAL", moeda(r["lb"]), "lucro bruto", True), unsafe_allow_html=True)
+        st.markdown(
+            kpi_html(
+                "VENDA DIRETA",
+                f"{r['qtd_venda_direta']:,}".replace(",", "."),
+                "venda direta",
+            ),
+            unsafe_allow_html=True,
+        )
+
     with k4:
-        st.markdown(kpi_html("MARGEM MÉDIA", pct(margem), "lucro / faturamento"), unsafe_allow_html=True)
+        st.markdown(
+            kpi_html(
+                "VEÍCULOS USADOS",
+                f"{r['qtd_usado']:,}".replace(",", "."),
+                "veículo usado",
+            ),
+            unsafe_allow_html=True,
+        )
+
     with k5:
-        st.markdown(kpi_html("TICKET MÉDIO", moeda(ticket), "por veículo", True), unsafe_allow_html=True)
+        st.markdown(
+            kpi_html(
+                "FATURAMENTO",
+                moeda(r["valor"]),
+                "vendas faturadas",
+                True,
+            ),
+            unsafe_allow_html=True,
+        )
+
     with k6:
         st.markdown(
             kpi_html(
-                meta_label,
-                moeda(meta) if meta_disponivel else "—",
-                meta_delta,
+                "LUCRO TOTAL",
+                moeda(r["lb"]),
+                "lucro bruto",
                 True,
             ),
             unsafe_allow_html=True,
@@ -790,22 +825,13 @@ with aba_dashboard:
 
     # ---- Indicadores comerciais relacionados aos pedidos do período ----
     ex = dados.indicadores_extras(base_loja_vendedor, ini, fim)
-    e1, e2, e3, e4, e5 = st.columns(5)
+    e1, e2, e3, e4 = st.columns(4)
     with e1:
         st.markdown(
             kpi_html("PEDIDOS DO PERÍODO", f"{ex['pedidos']}", "todos os pedidos"),
             unsafe_allow_html=True,
         )
     with e2:
-        st.markdown(
-            kpi_html(
-                "USADOS VENDIDOS",
-                f"{r['qtd_usado']:,}".replace(",", "."),
-                "vendas faturadas",
-            ),
-            unsafe_allow_html=True,
-        )
-    with e3:
         st.markdown(
             kpi_html(
                 "TEST DRIVE",
@@ -815,7 +841,7 @@ with aba_dashboard:
             ),
             unsafe_allow_html=True,
         )
-    with e4:
+    with e3:
         st.markdown(
             kpi_html(
                 "EMPLACADOS",
@@ -825,7 +851,7 @@ with aba_dashboard:
             ),
             unsafe_allow_html=True,
         )
-    with e5:
+    with e4:
         st.markdown(
             kpi_html(
                 "USADO NA TROCA",
@@ -837,7 +863,7 @@ with aba_dashboard:
         )
     if ex["pedidos"] and not (ex["td_n"] or ex["cap_n"] or ex["emp_n"]):
         st.caption(
-            "Ainda não há registros de TEST DRIVE, CAPTAÇÃO ou TIPO = Emplacado nos pedidos deste período. "
+            "Ainda não há registros de TEST DRIVE, CAPTAÇÃO ou STATUS = Emplacado nos pedidos deste período. "
             "Preencha essas colunas na planilha."
         )
 
@@ -1037,9 +1063,8 @@ with aba_dashboard:
 
     opcoes = {
         "Faturados": "fat",
-        "Aguardando (sem status)": "aguard",
+        "Aguardando faturamento": "aguard",
         "Cancelados": "canc",
-        "Devoluções": "dev",
     }
     escolha = st.radio("Visualização", list(opcoes), horizontal=True, label_visibility="collapsed")
     lista = r[opcoes[escolha]]
